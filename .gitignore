@@ -23,3 +23,11 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+.history/
+credentials.json
+audio/
+data/
+certs/
+*.mp3
+*.wav

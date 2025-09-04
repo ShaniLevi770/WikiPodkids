@@ -6,8 +6,7 @@ wikipedia==1.4.0
 SQLAlchemy>=2.0
 PyMySQL>=1.1
 supabase>=2.6
-mutagen.mp3==1.47.0
-
+mutagen==1.47.0
 
 # TTS
 google-cloud-texttospeech==2.27.0
