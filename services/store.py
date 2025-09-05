@@ -223,16 +223,18 @@ def list_saved_podcasts_alphabetical(
 ) -> List[Dict]:
     """
     List saved (rating=5) episodes alphabetically by topic (A→Z), then minutes.
-    Supports optional search (ILIKE '%search%') and pagination.
+    Supports optional search (case-insensitive) and pagination.
 
     collapse_by_minutes=True  -> keep the latest row per (lower(topic), minutes)
     collapse_by_minutes=False -> keep the latest row per lower(topic) (minutes collapsed)
     """
+    # ↓↓↓ REPLACED BLOCK (use LOWER(...) LIKE LOWER(:search) instead of ILIKE)
     params: Dict[str, object] = {"limit": int(limit), "offset": int(offset)}
     search_clause = ""
     if search:
-        search_clause = " AND topic ILIKE :search"
+        search_clause = " AND LOWER(topic) LIKE LOWER(:search)"
         params["search"] = f"%{search}%"
+    # ↑↑↑ END REPLACED BLOCK
 
     if collapse_by_minutes:
         sql = text(
@@ -279,7 +281,6 @@ def list_saved_podcasts_alphabetical(
         with engine.connect() as conn:
             rows = conn.execute(sql, params).fetchall()
     except Exception:
-        # If the DB is not ready (fresh deploy, path missing), avoid Errno 2
         return []
 
     out: List[Dict] = []
@@ -298,3 +299,4 @@ def list_saved_podcasts_alphabetical(
             }
         )
     return out
+
