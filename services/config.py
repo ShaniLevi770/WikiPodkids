@@ -1,8 +1,30 @@
 # services/config.py
-import os
+
+
+import os, io, base64
+import streamlit as st
 from pathlib import Path
-from dotenv import load_dotenv
 from openai import OpenAI
+from dotenv import dotenv_values, load_dotenv, find_dotenv
+
+def load_env_portable():
+    b64 = st.secrets.get("DOTENV_B64")
+    if b64:
+        raw = base64.b64decode(b64).decode("utf-8")
+        vals = dotenv_values(stream=io.StringIO(raw))
+        for k, v in vals.items():
+            if v is not None and k not in os.environ:
+                os.environ[k] = v
+        return
+    path = find_dotenv(usecwd=True)
+    if path:
+        load_dotenv(path, override=False)
+
+load_env_portable()
+
+
+
+
 
 load_dotenv(override=True)
 
@@ -31,10 +53,4 @@ MAXTOK_BUFFER       = float(os.getenv("MAXTOK_BUFFER", "0.25"))       # +25% hea
 MIN_TOKENS_FLOOR    = int(os.getenv("MIN_TOKENS_FLOOR", "512"))
 MIN_CHARS_FLOOR     = int(os.getenv("MIN_CHARS_FLOOR", "600"))
 
-# Voice labels for UI
-SELECTED_VOICES = {
-    "אישה – Wavenet-A": "he-IL-Wavenet-A",
-    "אישה – Wavenet-C": "he-IL-Wavenet-C",
-    "גבר – Wavenet-B": "he-IL-Wavenet-B",
-    "גבר – Wavenet-D": "he-IL-Wavenet-D",
-}
+
