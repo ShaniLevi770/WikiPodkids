@@ -27,13 +27,19 @@ def _compose_tidb_url() -> str:
 def _make_engine():
     url = _compose_tidb_url()
     
-    # Disable SSL entirely for testing
-    return create_engine(
-        url,
-        pool_pre_ping=True,
-        future=True,
-        connect_args={"ssl_disabled": True},  # Simplified approach
-    )
+    # Temporary debug - REMOVE after fixing
+    print(f"Connecting to host: {os.getenv('MYSQL_HOST')}")
+    print(f"Database: {os.getenv('MYSQL_DB')}")
+    print(f"User: {os.getenv('MYSQL_USER')}")
+    print(f"Port: {os.getenv('MYSQL_PORT', '4000')}")
+    
+    ssl_args = {
+        "ssl_disabled": False,
+        "ssl_verify_cert": False,
+        "ssl_verify_identity": False
+    }
+
+    return create_engine(url, pool_pre_ping=True, future=True, connect_args={"ssl": ssl_args})
 
 engine = _make_engine()
 
@@ -58,8 +64,14 @@ def init_schema():
         conn.execute(text(ddl))
 
 # Create the table at import (safe if it already exists)
-init_schema()
-
+try:
+    init_schema()
+    print("✅ Database connected successfully")
+except Exception as e:
+    print(f"❌ Database connection failed: {str(e)}")
+    print("App will run without database features")
+    engine = None  # Set engine to None so app can detect DB unavailable
+    
 def ping():
     with engine.connect() as conn:
         return conn.execute(text("SELECT 1")).scalar()
