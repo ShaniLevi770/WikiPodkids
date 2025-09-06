@@ -28,11 +28,19 @@ def _make_engine():
     # Compose TiDB DSN from parts (no DATABASE_URL)
     url = _compose_tidb_url()
 
-    # TLS for TiDB Cloud:
-    # - If MYSQL_SSL_CA is provided, verify with that CA
-    # - else enable TLS without explicit CA (accepted by TiDB Cloud)
+    # TLS for TiDB Cloud - Fixed SSL configuration
     ca = os.getenv("MYSQL_SSL_CA")
-    ssl_args = {"ca": ca} if ca else {"fake_flag_to_enable_tls": True}
+    
+    if ca:
+        # If you have a specific CA file
+        ssl_args = {"ca": ca}
+    else:
+        # For TiDB Cloud without specific CA - this is the fix!
+        ssl_args = {
+            "ssl_disabled": False,  # Enable SSL
+            "ssl_verify_cert": False,  # Don't verify the certificate
+            "ssl_verify_identity": False  # Don't verify identity
+        }
 
     return create_engine(
         url,
@@ -41,7 +49,9 @@ def _make_engine():
         connect_args={"ssl": ssl_args},
     )
 
+
 engine = _make_engine()
+
 
 def init_schema():
     """Create the 'episodes' table on TiDB/MySQL if it doesn't exist."""
