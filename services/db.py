@@ -25,30 +25,15 @@ def _compose_tidb_url() -> str:
     return f"mysql+pymysql://{user}:{pwd}@{host}:{port}/{db}?charset=utf8mb4"
 
 def _make_engine():
-    # Compose TiDB DSN from parts (no DATABASE_URL)
     url = _compose_tidb_url()
-
-    # TLS for TiDB Cloud - Fixed SSL configuration
-    ca = os.getenv("MYSQL_SSL_CA")
     
-    if ca:
-        # If you have a specific CA file
-        ssl_args = {"ca": ca}
-    else:
-        # For TiDB Cloud without specific CA - this is the fix!
-        ssl_args = {
-            "ssl_disabled": False,  # Enable SSL
-            "ssl_verify_cert": False,  # Don't verify the certificate
-            "ssl_verify_identity": False  # Don't verify identity
-        }
-
+    # Disable SSL entirely for testing
     return create_engine(
         url,
         pool_pre_ping=True,
         future=True,
-        connect_args={"ssl": ssl_args},
+        connect_args={"ssl_disabled": True},  # Simplified approach
     )
-
 
 engine = _make_engine()
 
