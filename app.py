@@ -26,46 +26,65 @@ import services.app_state as app_state
 # ---------- Settings & page ----------
 DEFAULT_HE_VOICE = "he-IL-Wavenet-D"
 
-st.set_page_config(page_title="🎙️ פודקאסט ילדים מוויקיפדיה", layout="centered")
-st.markdown(
-    """
-    <style>
-        html, body, .block-container { direction: rtl; text-align: right; }
-        .stTextInput > label, .stSelectbox > label, .stMarkdown { text-align: right; }
-        input, textarea { direction: rtl; }
-        details > summary { text-align: right; }
+st.set_page_config(page_title="🎙️ פודקאסט ילדים מוויקיפדיה", layout="wide")
 
-        .script-pre {
-            background: #ffffff; border: 1px solid #e2e2e2; border-radius: 10px;
-            padding: 14px 16px; white-space: pre-wrap; word-wrap: break-word;
-            font-size: 1.05rem; line-height: 1.85;
-        }
-        .dim-note { color: #6b7280; font-size: .95rem; }
+st.markdown("""
+<style>
+  /* ---------- RTL baseline ---------- */
+  html, body, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
+    direction: rtl !important;
+    text-align: right;
+  }
+  input, textarea { direction: rtl; }
 
-        /* --- Sidebar width (one source of truth) --- */
-        [data-testid="stSidebar"] { width: 480px; }
-        [data-testid="stSidebar"] > div:first-child { width: 480px; }
+  :root { --sbw: 420px; --gap: 16px; }
 
-        /* --- Gray background covering whole sidebar column while scrolling --- */
-        [data-testid="stSidebar"]::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            right: 0;                 /* sidebar on the right in RTL */
-            width: 480px;             /* match the width above */
-            height: 100dvh;
-            background: #f2f3f5;
-            z-index: 0;
-        }
-        [data-testid="stSidebar"] > div {
-            position: relative;
-            z-index: 1;
-            background: transparent !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+  /* ---------- Desktop (≥992px): fix sidebar and push app ---------- */
+  @media (min-width: 992px){
+    [data-testid="stSidebar"]{
+      position: fixed !important;
+      top: 0; right: 0; bottom: 0; left: auto;
+      width: var(--sbw) !important;
+      max-width: var(--sbw) !important;
+      background: #f2f3f5;
+      border-left: 1px solid #e5e7eb;
+      z-index: 100;
+    }
+    [data-testid="stSidebar"] > div:first-child{
+      height: 100%;
+      overflow-y: auto;
+      background: transparent !important;
+    }
+    /* Push the entire app view so it doesn't sit under the fixed sidebar */
+    [data-testid="stAppViewContainer"]{
+      padding-right: calc(var(--sbw) + var(--gap)) !important;
+    }
+    /* Nudge the top header/toolbar as well */
+    [data-testid="stHeader"]{
+      right: calc(var(--sbw) + var(--gap)) !important;
+    }
+  }
+
+  /* ---------- Mobile (<992px): default flow, no fixed sidebar ---------- */
+  @media (max-width: 991.98px){
+    [data-testid="stSidebar"]{ display: none !important; }
+    [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
+    audio{ width: 100% !important; }
+  }
+
+  /* ---------- Nice box for script text ---------- */
+  .script-pre{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    padding:14px 16px;
+    white-space:pre-wrap; word-wrap:break-word;
+    font-size:1.05rem; line-height:1.85;
+  }
+  .dim-note{ color:#6b7280; font-size:.95rem; }
+</style>
+""", unsafe_allow_html=True)
+
 
 st.title("🎙️ פודקאסט ילדים מוויקיפדיה")
 st.caption("⭐ כל פרק חדש נשמר למאגר רק אם הדירוג הוא ⭐⭐⭐⭐⭐.")
