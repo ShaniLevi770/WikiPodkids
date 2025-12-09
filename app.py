@@ -105,32 +105,12 @@ st.markdown("""
 
   /* ---------- Mobile (<992px): show sidebar in normal flow ---------- */
   @media (max-width: 991.98px){
-    /* Make sidebar the primary scroll area */
+    /* Hide sidebar on mobile to avoid cutoff */
+    [data-testid="stSidebar"]{ display: none !important; }
+    [data-testid="stSidebarNav"]{ display: none !important; }
     [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
     [data-testid="stMain"]{ padding-top: 0 !important; }
-    [data-testid="stSidebar"]{
-      display: block !important;
-      position: relative !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      border: none;
-      background: #f8fafc;
-      box-shadow: none !important;
-    }
-    [data-testid="stSidebar"] > div:first-child{
-      height: auto;
-      overflow: visible;
-    }
-    [data-testid="stSidebarNav"]{ display: none !important; }
-    [data-testid="stSidebarContent"]{
-      height: auto !important;
-      max-height: none !important;
-      overflow: visible !important;
-    }
-    body, [data-testid="stAppViewContainer"]{
-      overflow-y: auto !important;
-      background: #f8fafc;
-    }
+    body{ overflow-y: auto !important; }
     audio{ width: 100% !important; }
   }
 
