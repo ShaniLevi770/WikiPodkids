@@ -103,27 +103,6 @@ st.markdown("""
     }
   }
 
-  /* ---------- Mobile (<992px): show sidebar in normal flow ---------- */
-  @media (max-width: 991.98px){
-    /* Keep main full-width; rely on default burger to open sidebar overlay */
-    [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
-    [data-testid="stMain"]{ padding-top: 0 !important; }
-    html, body{ overflow-x: hidden !important; overflow-y: auto !important; }
-    audio{ width: 100% !important; }
-    /* Sidebar overlay full width */
-    [data-testid="stSidebar"]{
-      width: 100vw !important;
-      max-width: 100vw !important;
-      min-width: 100vw !important;
-      left: 0 !important;
-      box-shadow: none !important;
-    }
-    [data-testid="stSidebar"] > div:first-child{
-      height: auto;
-      overflow: visible;
-    }
-  }
-
   /* ---------- Nice box for script text ---------- */
   .script-pre{
     background:#fff;
@@ -134,6 +113,47 @@ st.markdown("""
     font-size:1.05rem; line-height:1.85;
   }
   .dim-note{ color:#6b7280; font-size:.95rem; }
+
+  /* ---------- Mobile: hide sidebar, full-width main ---------- */
+  @media (max-width: 991.98px){
+    [data-testid="collapsedControl"]{ display: block !important; }
+    /* Sidebar overlay only when expanded */
+    [data-testid="stSidebar"]{
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      min-width: 100vw !important;
+      box-shadow: none !important;
+      z-index: 10000 !important;
+      background: #f8fafc;
+    }
+    [data-testid="stSidebar"][aria-expanded="false"]{
+      display: none !important;
+    }
+    [data-testid="stSidebar"] > div:first-child{
+      height: 100vh !important;
+      overflow: auto !important;
+    }
+    [data-testid="stAppViewContainer"]{
+      padding-right: 0 !important;
+      margin: 0 !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+    [data-testid="stMain"]{
+      padding-top: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    html, body{
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    audio{ width: 100% !important; }
+  }
 </style>
 """, unsafe_allow_html=True)
 
