@@ -26,7 +26,7 @@ import services.app_state as app_state
 # ---------- Settings & page ----------
 DEFAULT_HE_VOICE = "he-IL-Wavenet-B"  # more natural; try B as well
 
-st.set_page_config(page_title="פודקאסט ילדים מוויקיפדיה", layout="wide")
+st.set_page_config(page_title="פודקאסט ילדים מוויקיפדיה", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
     """
     <div style="
@@ -105,31 +105,23 @@ st.markdown("""
 
   /* ---------- Mobile (<992px): show sidebar in normal flow ---------- */
   @media (max-width: 991.98px){
-    /* Show sidebar in normal flow on mobile */
+    /* Keep main full-width; rely on default burger to open sidebar overlay */
+    [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
+    [data-testid="stMain"]{ padding-top: 0 !important; }
+    html, body{ overflow-x: hidden !important; overflow-y: auto !important; }
+    audio{ width: 100% !important; }
+    /* Sidebar overlay full width */
     [data-testid="stSidebar"]{
-      display: block !important;
-      position: relative !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      min-width: 100vw !important;
       left: 0 !important;
-      transform: none !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      border: none;
-      background: #f8fafc;
       box-shadow: none !important;
-      padding: 0 0 12px 0;
-      opacity: 1 !important;
-      visibility: visible !important;
     }
     [data-testid="stSidebar"] > div:first-child{
       height: auto;
       overflow: visible;
     }
-    [data-testid="stSidebarNav"]{ display: none !important; }
-    [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
-    [data-testid="stMain"]{ padding-top: 0 !important; }
-    [data-testid="collapsedControl"]{ display: none !important; }
-    html, body{ overflow-x: hidden !important; overflow-y: auto !important; background: #f8fafc; }
-    audio{ width: 100% !important; }
   }
 
   /* ---------- Nice box for script text ---------- */
