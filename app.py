@@ -105,12 +105,25 @@ st.markdown("""
 
   /* ---------- Mobile (<992px): show sidebar in normal flow ---------- */
   @media (max-width: 991.98px){
-    /* Hide sidebar on mobile to avoid cutoff */
-    [data-testid="stSidebar"]{ display: none !important; }
+    /* Show sidebar in normal flow on mobile */
+    [data-testid="stSidebar"]{
+      display: block !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border: none;
+      background: #f8fafc;
+      box-shadow: none !important;
+      padding: 0 0 12px 0;
+    }
+    [data-testid="stSidebar"] > div:first-child{
+      height: auto;
+      overflow: visible;
+    }
     [data-testid="stSidebarNav"]{ display: none !important; }
     [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
     [data-testid="stMain"]{ padding-top: 0 !important; }
-    body{ overflow-y: auto !important; }
+    body{ overflow-y: auto !important; background: #f8fafc; }
     audio{ width: 100% !important; }
   }
 
