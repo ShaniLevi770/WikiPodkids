@@ -1,33 +1,35 @@
 # services/generator.py
-from services.config import (
-    oai, OPENAI_MODEL, CHARS_PER_MIN,
-    AVG_CHARS_PER_TOKEN, MAXTOK_BUFFER, MIN_TOKENS_FLOOR, MIN_CHARS_FLOOR
-)
+# New approach: generate only opening+body (no closing), then append a fixed closing.
+# This prevents mid-script "סיום/תודה" and avoids stitched endings.
+
 import re
+from services.config import (
+    oai,
+    OPENAI_MODEL,
+    CHARS_PER_MIN,
+    AVG_CHARS_PER_TOKEN,
+    MAXTOK_BUFFER,
+    MIN_TOKENS_FLOOR,
+    MIN_CHARS_FLOOR,
+)
 
 
 def _token_cap(for_chars: int) -> int:
-    """
-    Convert a desired number of characters into a safe token cap,
-    with a small configurable headroom.
-    """
+    """Convert desired characters into a safe token cap with headroom."""
     t = max(1, int(for_chars / AVG_CHARS_PER_TOKEN))
     return max(MIN_TOKENS_FLOOR, int(t * (1 + MAXTOK_BUFFER)))
 
 
 def _trim_to_sentence(text: str, cap: int) -> str:
-    """
-    If we ran long, trim at the last sentence-ending punctuation
-    before the hard cap. Fallback: last space; add ellipsis if needed.
-    """
+    """Trim at a sentence boundary before the hard cap."""
     slice_ = text[:cap]
-    matches = list(re.finditer(r'[.!?…](?=\s|$)', slice_))
+    matches = list(re.finditer(r"[.!?](?=\s|$)", slice_))
     if matches:
         return slice_[:matches[-1].end()].rstrip()
     cut = slice_.rfind(" ")
     out = (slice_[:cut] if cut != -1 else slice_).rstrip()
-    if not out.endswith((".", "!", "?", "…")):
-        out += "…"
+    if not out.endswith((".", "!", "?")):
+        out += "..."
     return out
 
 
@@ -39,90 +41,100 @@ def generate_kids_podcast_script(
 ) -> str:
     """
     Generate a Hebrew kids-podcast script sized to the requested minutes.
-    - First call aims for target length.
-    - If short, ask the model to continue (up to 2 times).
-    - If long, trim at a sentence boundary to a tight max.
+    Strategy:
+    - Ask the model for opening+body ONLY (no סיום/תודה/סיכום headings).
+    - If short, one continuation adds more body (no closing).
+    - Append a fixed closing paragraph ourselves.
     """
 
-    # 1) Target size (characters) scales with requested minutes
     target_chars = max(MIN_CHARS_FLOOR, int(round(minutes * CHARS_PER_MIN)))
-    # Tight window: must reach ~95% of target, never exceed ~105%
-    min_chars = int(target_chars * 0.95)
-    max_chars = int(target_chars * 1.05)
+    min_chars = int(target_chars * 1.10)  # push above target to avoid under-length
+    max_chars = int(target_chars * 1.25)  # generous headroom; trimmed if exceeded
+    body_goal = min_chars - 180  # leave room for closing paragraph
 
-    # 2) Tone by age
     if age_label == "3-6":
-        age_tone = "הקהל: ילדים צעירים בגילי 3–6. משפטים קצרים מאוד, מילים פשוטות וחזרות עדינות."
+        age_tone = (
+            "שפה פשוטה, חמה ורגועה לילדים בגילאי 3-6. "
+            "משפטים קצרים, רגעי צחוק, והזמנות לשיתוף."
+        )
     else:
-        age_tone = "הקהל: ילדים בגילי 7–12; שלבו 1–2 עובדות וואו."
-
-    system_msg = "אתה מלמד ילדים בצורה מעניינת בעברית פשוטה."
-
-    # 3) First prompt asks for at least target_chars and to keep sentences whole
-    user_prompt = f"""
-אתה כותב תסריט לפודקאסט כיפי לילדים בעברית פשוטה וברורה.
-{age_tone}
-הנושא: {topic}
-מידע אמין לשימוש (אל תמציא עובדות):
-\"\"\"{summary}\"\"\"
-
-הוראות:
-- פתח ב"היי ילדים!".
-- כלול עובדות מעניינות על הנושא.
-- הוסף בדיחה קלילה או אנקדוטה מצחיקה.
-- שאל שאלות פתוחות לא ילדותיות כדי לעודד חשיבה.
-- שלב משחק "ענו איתי" עם עד 2 שאלות קצרות בהקשר של מה שאתה עומד להגיד (כן/לא, ניחוש קטן).
-- בלי אימוג'ים ובלי רשימות — רק פסקאות זורמות.
-- כתוב לפחות {target_chars} תווים (לא פחות), וסיים משפט מלא.
-- הימנע מתכנים מפחידים/עצובים.
-כתוב רק את הטקסט עצמו, בלי כותרות.
-""".strip()
-
-    text = ""
-    messages = [
-        {"role": "system", "content": system_msg},
-        {"role": "user",   "content": user_prompt},
-    ]
-
-    # 4) Initial call + up to 2 continuations until we hit the minimum
-    for _ in range(3):
-        remaining = max_chars - len(text)
-        if remaining <= 0:
-            break  # already at/over the hard cap
-
-        resp = oai.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=messages,
-            temperature=0.9,
-            max_tokens=_token_cap(remaining),  # strictly budget by what's left
-            presence_penalty=0.2,
-            frequency_penalty=0.1,
+        age_tone = (
+            "דבר לילדים בגילאי 7-12; הוסף 1-2 עובדות מפתיעות שמתאימות לגיל."
         )
 
-        part = (resp.choices[0].message.content or "").strip()
-        if not part:
-            break
+    system_msg = (
+        "אתה כותב תסריט לפודקאסט ילדים בעברית. "
+        "אל תכתוב כותרת או פסקה בשם סיום/סיכום/תודה/להתראות. "
+        "אין אמירות סיום בכלל; שמור אותן לסוף שנוסיף אחרי הגוף."
+    )
 
-        text += (("\n\n" if text else "") + part)
+    user_prompt = f"""
+כתוב פתיחה קצרה וגוף בלבד לפודקאסט ילדים בעברית לפי הנושא והתקציר.
+אין לכלול סיום, סיכום, תודה או להתראות.
+{age_tone}
+נושא: {topic}
+תקציר בסיסי:
+\"\"\"{summary}\"\"\"
 
-        # If we overshot the cap, trim neatly and stop
-        if len(text) > max_chars:
-            text = _trim_to_sentence(text, max_chars)
-            break
+מבנה:
+1) פתיחה קצרה ומזמינה.
+2) גוף עם 4-6 חלקים, כל אחד מוסיף רעיון/דוגמה חדשה ללא חזרה על הקודם.
 
-        # Stop once we reached the minimum
-        if len(text) >= min_chars:
-            break
+הנחיות:
+- ללא כותרת או פסקה בשם "סיום"/"סיכום"/"תודה"/"להתראות".
+- אל תחזור על פסקאות; כל חלק חדש ומתקדם.
+- שמור על רצף טבעי, אפשר כותרות קצרות בין חלקים.
+- אורך מטרה לגוף בלבד: לפחות {body_goal} תווים, לא לעבור את {max_chars} כולל סיום שנוסיף.
+""".strip()
 
-        # Ask to continue with at most what we still need (and never beyond max)
-        need = max(0, min(min_chars - len(text), max_chars - len(text)))
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    resp = oai.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=messages,
+        temperature=0.82,
+        max_tokens=_token_cap(max_chars),
+        presence_penalty=0.6,
+        frequency_penalty=0.35,
+        stop=["\nסיום", "\nסיכום", "\nתודה", "\nלהתראות"],
+    )
+
+    body = (resp.choices[0].message.content or "").strip()
+
+    # If body is short, extend once (body-only)
+    if len(body) < body_goal:
+        need = max(0, body_goal - len(body))
+        cont_prompt = (
+            f"הרחב את גוף התסריט בלבד. ללא פתיחה חדשה וללא סיום/סיכום/תודה. "
+            f"הוסף תוכן חדש (רעיונות/דוגמאות) עד כ-{need} תווים נוספים, "
+            f"בלי לחזור על פסקאות קודמות."
+        )
         messages = [
-            {"role": "system",    "content": system_msg},
-            {"role": "assistant", "content": part},
-            {"role": "user",      "content": (
-                f"המשך מאותה נקודה. הוסף עד {need} תווים לכל היותר, "
-                "בלי לחזור על מה שכבר נכתב ובאותו סגנון. עצור מיד בסוף משפט כאשר אתה מגיע לאורך הזה."
-            )},
+            {"role": "system", "content": system_msg},
+            {"role": "assistant", "content": body},
+            {"role": "user", "content": cont_prompt},
         ]
+        resp2 = oai.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            temperature=0.78,
+            max_tokens=_token_cap(max_chars - len(body)),
+            presence_penalty=0.6,
+            frequency_penalty=0.35,
+            stop=["\nסיום", "\nסיכום", "\nתודה", "\nלהתראות"],
+        )
+        addition = (resp2.choices[0].message.content or "").strip()
+        if addition:
+            body = body + "\n\n" + addition
 
-    return text
+    # Compose final script with a fixed closing paragraph
+    closing = "תודה שהייתם איתנו במסע הזה! נתראה בפרק הבא עם עוד נושאים מעניינים ומסקרנים."
+    script = body.rstrip() + "\n\n" + closing
+
+    if len(script) > max_chars:
+        script = _trim_to_sentence(script, max_chars)
+
+    return script

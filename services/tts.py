@@ -1,6 +1,7 @@
 # services/tts.py
 import os
 import uuid
+import re
 import textwrap
 from google.cloud import texttospeech
 from services.config import get_gcp_creds  # use lazy creds from config
@@ -17,8 +18,29 @@ except Exception:
         return texttospeech.TextToSpeechClient(credentials=get_gcp_creds())
 
 
+def _clean_for_tts(text: str) -> str:
+    """
+    Strip markdown-y headings and bold markers so TTS doesn't read them as asterisks.
+    - Drop lines that look like headings (start with # or are wrapped in **...** and short).
+    - Remove bold markers **...** but keep the inner text.
+    """
+    cleaned_lines = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            continue
+        if s.startswith("**") and s.endswith("**") and len(s) <= 80:
+            continue
+        line = re.sub(r"\*\*(.*?)\*\*", r"\1", line)
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
+
 def split_text_safe(text: str, max_chars: int = 1200):
-    """Split long text into safe chunks without breaking words."""
+    """Split long text into safe chunks without breaking words (after cleaning)."""
+    text = _clean_for_tts(text)
     return textwrap.wrap(
         text,
         max_chars,
@@ -58,7 +80,7 @@ def synthesize_chunks_to_file(chunks, voice_name: str, filename: str = "podcast.
     )
     audio_config = texttospeech.AudioConfig(
         audio_encoding=texttospeech.AudioEncoding.MP3,
-        speaking_rate=1.0,
+        speaking_rate=1,  # default speed
     )
 
     os.makedirs("audio", exist_ok=True)

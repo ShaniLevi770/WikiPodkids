@@ -24,9 +24,33 @@ from services.store import (
 import services.app_state as app_state
 
 # ---------- Settings & page ----------
-DEFAULT_HE_VOICE = "he-IL-Wavenet-D"
+DEFAULT_HE_VOICE = "he-IL-Wavenet-B"  # more natural; try B as well
 
-st.set_page_config(page_title="🎙️ פודקאסט ילדים מוויקיפדיה", layout="wide")
+st.set_page_config(page_title="פודקאסט ילדים מוויקיפדיה", layout="wide")
+st.markdown(
+    """
+    <div style="
+      position:relative;
+      direction:rtl;
+      text-align:right;
+      margin: 8px 0 10px 0;
+      width:100%;
+      min-height:2.6rem;
+    ">
+      <span aria-hidden="true" style="font-size:2.4rem; line-height:1; position:absolute; right:0; top:0;">🎙️</span>
+      <h1 style="
+        margin:0;
+        padding:0;
+        padding-right:2.8rem;
+        font-weight:800;
+        font-size:clamp(2rem, 5vw, 2.6rem);
+        line-height:1.2;
+        display:block;
+      ">פודקאסט ילדים מוויקיפדיה</h1>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown("""
 <style>
@@ -37,7 +61,21 @@ st.markdown("""
   }
   input, textarea { direction: rtl; }
 
-  :root { --sbw: 420px; --gap: 16px; }
+  :root { --sbw: clamp(300px, 28vw, 360px); --gap: 16px; }
+
+  /* Sidebar buttons sizing */
+  [data-testid="stSidebar"] .stButton button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-height: 34px;
+    min-width: 84px;
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
 
   /* ---------- Desktop (≥992px): fix sidebar and push app ---------- */
   @media (min-width: 992px){
@@ -65,10 +103,34 @@ st.markdown("""
     }
   }
 
-  /* ---------- Mobile (<992px): default flow, no fixed sidebar ---------- */
+  /* ---------- Mobile (<992px): show sidebar in normal flow ---------- */
   @media (max-width: 991.98px){
-    [data-testid="stSidebar"]{ display: none !important; }
+    /* Make sidebar the primary scroll area */
     [data-testid="stAppViewContainer"]{ padding-right: 0 !important; }
+    [data-testid="stMain"]{ padding-top: 0 !important; }
+    [data-testid="stSidebar"]{
+      display: block !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border: none;
+      background: #f8fafc;
+      box-shadow: none !important;
+    }
+    [data-testid="stSidebar"] > div:first-child{
+      height: auto;
+      overflow: visible;
+    }
+    [data-testid="stSidebarNav"]{ display: none !important; }
+    [data-testid="stSidebarContent"]{
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    body, [data-testid="stAppViewContainer"]{
+      overflow-y: auto !important;
+      background: #f8fafc;
+    }
     audio{ width: 100% !important; }
   }
 
@@ -86,7 +148,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-st.title("🎙️ פודקאסט ילדים מוויקיפדיה")
 st.caption("⭐ כל פרק חדש נשמר למאגר רק אם הדירוג הוא ⭐⭐⭐⭐⭐.")
 
 # ---------- Session state ----------
@@ -135,15 +196,18 @@ with st.sidebar:
 
     # Prev / Next pagination
     sb_limit = 10
-    col_a, col_b, col_c = st.columns([1, 1, 2])
-    with col_a:
-        if st.button("⬅️ הקודם", use_container_width=True) and ss["sb_page"] > 1:
+    col_prev, col_label, col_next = st.columns([1, 1, 1])
+    with col_prev:
+        if st.button("➡️ הקודם", use_container_width=True) and ss["sb_page"] > 1:
             ss["sb_page"] -= 1; st.rerun()
-    with col_b:
-        if st.button("➡️ הבא", use_container_width=True):
+    with col_label:
+        st.markdown(
+            f"<div style='text-align:center; padding-top:6px;'>עמוד: <b>{ss['sb_page']}</b></div>",
+            unsafe_allow_html=True,
+        )
+    with col_next:
+        if st.button("הבא ⬅️", use_container_width=True):
             ss["sb_page"] += 1; st.rerun()
-    with col_c:
-        st.write(f"עמוד: **{ss['sb_page']}**")
 
     sb_offset = (ss["sb_page"] - 1) * sb_limit
 

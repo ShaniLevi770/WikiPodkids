@@ -1,11 +1,12 @@
-# services/db.py
 import os
-from pathlib import Path
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv, find_dotenv
 
 # Load .env locally (on Streamlit Cloud your config already injected env vars)
 load_dotenv(find_dotenv(usecwd=True), override=False)
+
+engine = None  # set below once we can build it safely
+
 
 def _compose_tidb_url() -> str:
     """
@@ -14,34 +15,34 @@ def _compose_tidb_url() -> str:
     """
     host = os.getenv("MYSQL_HOST")
     port = os.getenv("MYSQL_PORT", "4000")
-    db   = os.getenv("MYSQL_DB")
+    db = os.getenv("MYSQL_DB")
     user = os.getenv("MYSQL_USER")
-    pwd  = os.getenv("MYSQL_PASS")
+    pwd = os.getenv("MYSQL_PASS")
     if not all([host, db, user, pwd]):
-        raise RuntimeError(
-            "Missing one of MYSQL_HOST / MYSQL_DB / MYSQL_USER / MYSQL_PASS in environment."
-        )
-    # Always set utf8mb4
+        raise RuntimeError("Missing one of MYSQL_HOST / MYSQL_DB / MYSQL_USER / MYSQL_PASS in environment.")
     return f"mysql+pymysql://{user}:{pwd}@{host}:{port}/{db}?charset=utf8mb4"
+
 
 def _make_engine():
     url = _compose_tidb_url()
-    
-    # Temporary debug - REMOVE after fixing
-    print(f"Connecting to host: {os.getenv('MYSQL_HOST')}")
-    print(f"Database: {os.getenv('MYSQL_DB')}")
-    print(f"User: {os.getenv('MYSQL_USER')}")
-    print(f"Port: {os.getenv('MYSQL_PORT', '4000')}")
-    
     ssl_args = {
         "ssl_disabled": False,
-        "ssl_verify_cert": False,
-        "ssl_verify_identity": False
+        "ssl_verify_cert": True,
+        "ssl_verify_identity": True,
     }
-
     return create_engine(url, pool_pre_ping=True, future=True, connect_args={"ssl": ssl_args})
 
-engine = _make_engine()
+
+def _try_init_engine():
+    """Attempt to create the engine and schema, but never crash the app if DB is misconfigured."""
+    global engine
+    try:
+        engine = _make_engine()
+        init_schema()
+        print("DB connected")
+    except Exception as e:
+        engine = None
+        print(f"DB unavailable: {e}. Running without database features.")
 
 
 def init_schema():
@@ -63,17 +64,14 @@ def init_schema():
     with engine.begin() as conn:
         conn.execute(text(ddl))
 
-# Create the table at import (safe if it already exists)
-try:
-    init_schema()
-    print("✅ Database connected successfully")
-except Exception as e:
-    print(f"❌ Database connection failed: {str(e)}")
-    print("App will run without database features")
-    engine = None  # Set engine to None so app can detect DB unavailable
-    
+
 def ping():
+    if engine is None:
+        return None
     with engine.connect() as conn:
         return conn.execute(text("SELECT 1")).scalar()
+
+
+_try_init_engine()
 
 __all__ = ["engine", "init_schema", "ping"]

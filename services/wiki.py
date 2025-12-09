@@ -1,6 +1,10 @@
 # services/wiki.py
 import re
+import warnings
 import wikipedia
+
+# Silence BeautifulSoup parser warning emitted by wikipedia package
+warnings.filterwarnings("ignore", category=UserWarning, module="wikipedia")
 
 wikipedia.set_lang("he")
 
