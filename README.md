@@ -86,4 +86,9 @@ CREATE INDEX idx_episodes_created_at ON episodes (created_at);
 - Voices — optional ElevenLabs or multi-voice selection behind a feature flag.
 - Safety — lightweight moderation/fact checks prior to TTS; stricter prompt templates.
 - Ops — `.env.example`, CI pipeline with tests, basic telemetry/metrics dashboards.
-git status
+### Local dev & tests
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+python -m pytest -q
+```

@@ -1,6 +1,5 @@
 # services/generator.py
-# New approach: generate only opening+body (no closing), then append a fixed closing.
-# This prevents mid-script "סיום/תודה" and avoids stitched endings.
+# Generate opening + body only; append fixed closing to avoid mid-script endings.
 
 import re
 from services.config import (
@@ -15,13 +14,11 @@ from services.config import (
 
 
 def _token_cap(for_chars: int) -> int:
-    """Convert desired characters into a safe token cap with headroom."""
     t = max(1, int(for_chars / AVG_CHARS_PER_TOKEN))
     return max(MIN_TOKENS_FLOOR, int(t * (1 + MAXTOK_BUFFER)))
 
 
 def _trim_to_sentence(text: str, cap: int) -> str:
-    """Trim at a sentence boundary before the hard cap."""
     slice_ = text[:cap]
     matches = list(re.finditer(r"[.!?](?=\s|$)", slice_))
     if matches:
@@ -39,18 +36,10 @@ def generate_kids_podcast_script(
     minutes: float = 5.0,
     age_label: str = "7-12",
 ) -> str:
-    """
-    Generate a Hebrew kids-podcast script sized to the requested minutes.
-    Strategy:
-    - Ask the model for opening+body ONLY (no סיום/תודה/סיכום headings).
-    - If short, one continuation adds more body (no closing).
-    - Append a fixed closing paragraph ourselves.
-    """
-
     target_chars = max(MIN_CHARS_FLOOR, int(round(minutes * CHARS_PER_MIN)))
-    min_chars = int(target_chars * 1.10)  # push above target to avoid under-length
-    max_chars = int(target_chars * 1.25)  # generous headroom; trimmed if exceeded
-    body_goal = min_chars - 180  # leave room for closing paragraph
+    min_chars = int(target_chars * 1.10)
+    max_chars = int(target_chars * 1.25)
+    body_goal = min_chars - 180
 
     if age_label == "3-6":
         age_tone = (
@@ -104,7 +93,6 @@ def generate_kids_podcast_script(
 
     body = (resp.choices[0].message.content or "").strip()
 
-    # If body is short, extend once (body-only)
     if len(body) < body_goal:
         need = max(0, body_goal - len(body))
         cont_prompt = (
@@ -130,11 +118,13 @@ def generate_kids_podcast_script(
         if addition:
             body = body + "\n\n" + addition
 
-    # Compose final script with a fixed closing paragraph
     closing = "תודה שהייתם איתנו במסע הזה! נתראה בפרק הבא עם עוד נושאים מעניינים ומסקרנים."
-    script = body.rstrip() + "\n\n" + closing
+    # Keep the closing: trim the body within budget, then append closing.
+    closing_block = "\n\n" + closing
+    body = body.rstrip()
+    budget_for_body = max(0, max_chars - len(closing_block))
+    if len(body) > budget_for_body:
+        body = _trim_to_sentence(body, budget_for_body)
 
-    if len(script) > max_chars:
-        script = _trim_to_sentence(script, max_chars)
-
+    script = (body + closing_block).strip()
     return script

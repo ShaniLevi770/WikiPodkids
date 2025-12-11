@@ -209,7 +209,8 @@ with st.sidebar:
     col_prev, col_label, col_next = st.columns([1, 1, 1])
     with col_prev:
         if st.button("➡️ הקודם", use_container_width=True) and ss["sb_page"] > 1:
-            ss["sb_page"] -= 1; st.rerun()
+            ss["sb_page"] -= 1
+            st.rerun()
     with col_label:
         st.markdown(
             f"<div style='text-align:center; padding-top:6px;'>עמוד: <b>{ss['sb_page']}</b></div>",
@@ -217,7 +218,8 @@ with st.sidebar:
         )
     with col_next:
         if st.button("הבא ⬅️", use_container_width=True):
-            ss["sb_page"] += 1; st.rerun()
+            ss["sb_page"] += 1
+            st.rerun()
 
     sb_offset = (ss["sb_page"] - 1) * sb_limit
 
@@ -312,8 +314,6 @@ age_ui = st.selectbox("קהל יעד:", options=["12-7", "6-3"], index=0, key="a
 age_label = "7-12" if age_ui == "12-7" else "3-6"
 
 search_clicked = st.button("חפש 🔎", key="search_btn")
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 if topic:
     ss["topic"] = topic
@@ -414,21 +414,17 @@ if ss.get("using_cached") and ss.get("public_url_saved") and ss.get("script"):
                 with st.spinner("מוחק מהמסד ומ-Supabase…"):
                     try:
                         ok, msg = delete_episode_admin(ss["topic"], ss["minutes"], token)
-                        st.write(f"DEBUG: delete_episode_admin returned ok={ok}, msg={msg}")
                     except Exception as e:
                         ok, msg = False, f"שגיאה: {e}"
-                        st.write(f"DEBUG: exception during delete: {e}")
 
                 if ok:
                     st.success(msg or "הפרק נמחק בהצלחה.")
                     for k in ("admin_token_input", "script", "audio_path", "public_url_saved", "storage_key_saved"):
                         ss.pop(k, None)
                     ss["using_cached"] = False
-                    st.write("DEBUG: state cleared, rerunning app")
                     st.rerun()
                 else:
                     st.error(msg or "מחיקה נכשלה. ודאי שאסימון המנהל תקין.")
-                    st.write("DEBUG: deletion failed, not rerunning")
 
     st.stop()
 
