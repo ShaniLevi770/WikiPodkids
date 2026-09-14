@@ -40,12 +40,24 @@ def _send_push(msg: str):
         pass
 
 
+_DEFAULT_STATE = {"app_enabled": True, "searches_total": 0}
+
+
 def get_state() -> dict:
+    """
+    Read app_state from Supabase. Never raises: any connectivity/config issue
+    (paused project, network blip, missing creds) falls back to a safe default
+    so the whole app doesn't crash before it can render anything.
+    """
     sb = _client()
     if sb is None:
-        return {"app_enabled": True, "searches_total": 0}
-    _ensure_row(sb)
-    return sb.table("app_state").select("*").eq("id", "main").single().execute().data
+        return dict(_DEFAULT_STATE)
+    try:
+        _ensure_row(sb)
+        data = sb.table("app_state").select("*").eq("id", "main").single().execute().data
+        return data or dict(_DEFAULT_STATE)
+    except Exception:
+        return dict(_DEFAULT_STATE)
 
 
 def is_enabled() -> bool:
@@ -56,19 +68,37 @@ def set_enabled(enabled: bool):
     sb = _client()
     if sb is None:
         return
-    sb.table("app_state").update({"app_enabled": enabled}).eq("id", "main").execute()
+    try:
+        sb.table("app_state").update({"app_enabled": enabled}).eq("id", "main").execute()
+    except Exception:
+        pass
 
 
 def increment_searches_and_maybe_notify(every: int = 10) -> int:
+    """
+    Increment the persistent search counter and push-notify every Nth search.
+    Never raises: on any Supabase error, returns 0 and skips the notification
+    rather than breaking the search flow.
+    """
     sb = _client()
     if sb is None:
         return 0
-    _ensure_row(sb)
-    cur = sb.table("app_state").select("searches_total").eq("id", "main").single().execute().data["searches_total"]
-    new_total = cur + 1
-    sb.table("app_state").update(
-        {"searches_total": new_total, "last_notified_at": dt.datetime.utcnow().isoformat()}
-    ).eq("id", "main").execute()
+    try:
+        _ensure_row(sb)
+        cur = (
+            sb.table("app_state")
+            .select("searches_total")
+            .eq("id", "main")
+            .single()
+            .execute()
+            .data["searches_total"]
+        )
+        new_total = cur + 1
+        sb.table("app_state").update(
+            {"searches_total": new_total, "last_notified_at": dt.datetime.utcnow().isoformat()}
+        ).eq("id", "main").execute()
+    except Exception:
+        return 0
 
     if every > 0 and new_total % every == 0:
         _send_push(f"App reached {new_total} searches.")
